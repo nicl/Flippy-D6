@@ -104,7 +104,7 @@ function flippy_content_extra_fields($type_name) {
   $type = node_get_types('type', $type_name);
   $extra = array();
 
-  if (variable_get('flippy_'. $type_name, null)) {
+  if (variable_get('flippy_'. $type_name, NULL)) {
     $extra['flippy_pager'] = array(
       'label' => t('Pager'),
       'description' => t('Flippy module content pager'),
@@ -142,7 +142,7 @@ function flippy_build_list($node) {
     $q = array();
     $list = array();
     // Create a starting-point query object
-    $sql = "SELECT nid, title FROM node
+    $sql = "SELECT nid, title FROM {node}
         WHERE status = 1 AND type = '%s' AND nid != '%d'";
     $q = array(
       'first' => "\nAND created <= '%d' ORDER BY created ASC",

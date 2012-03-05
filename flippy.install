@@ -9,7 +9,7 @@
  * Remove variables on uninstall
  */
 function flippy_uninstall() {
-  $sql = "SELECT name FROM variable WHERE name LIKE 'flippy_%'";
+  $sql = "SELECT name FROM {variable} WHERE name LIKE 'flippy_%'";
   $results = db_query($sql);
 
   foreach ($results as $result) {
