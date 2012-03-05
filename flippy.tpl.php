@@ -26,6 +26,8 @@
  * - $last['title']: The Node title of the last node.
  *
  * @see template_preprocess_flippy()
+ * 
+ * @ingroup themeable
  */
 ?>
 <ul class="flippy">

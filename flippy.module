@@ -5,12 +5,8 @@
  * Allows administrators to add previous/next pagers to any node type.
  */
 
-
 /**
  * Implements hook_theme()
- *
- * @todo Please document this function.
- * @see http://drupal.org/node/1354
  */
 function flippy_theme() {
   return array(
@@ -27,7 +23,6 @@ function flippy_theme() {
  * Implements hook_form_FORM_ID_alter().
  */
 function flippy_form_node_type_form_alter(&$form, $form_state) {
-//  krumo($form);
   $form['flippy'] = array(
     '#type' => 'fieldset',
     '#title' => t('Flippy settings'),
@@ -103,7 +98,7 @@ function flippy_form_node_type_form_alter(&$form, $form_state) {
 }
 
 /**
- * Implementation of hook_content_extra_fields.
+ * Implements hook_content_extra_fields.
  */
 function flippy_content_extra_fields($type_name) {
   $type = node_get_types('type', $type_name);
@@ -146,9 +141,8 @@ function flippy_build_list($node) {
   if (!isset($master_list[$node->nid])) {
     $q = array();
     $list = array();
-
     // Create a starting-point query object
-    $sql = "SELECT nid, title FROM node 
+    $sql = "SELECT nid, title FROM node
         WHERE status = 1 AND type = '%s' AND nid != '%d'";
     $q = array(
       'first' => "\nAND created <= '%d' ORDER BY created ASC",
@@ -156,18 +150,15 @@ function flippy_build_list($node) {
       'next'  => "\nAND created >= '%d' ORDER BY created ASC",
       'last'  => "\nAND created >= '%d' ORDER BY created DESC",
     );
-
     foreach ($q as $key => $query) {
       $query = $sql . $query . "\n LIMIT 1";
-      $list[$key] = db_fetch_array(db_query($query, $node->type, $node->nid, 
+      $list[$key] = db_fetch_array(db_query($query, $node->type, $node->nid,
           $node->created));
     }
-
     $list['current'] = array(
       'nid' => $node->nid,
       'title' => $node->title,
     );
-
     $master_list[$node->nid] = $list;
   }
 
@@ -175,7 +166,11 @@ function flippy_build_list($node) {
 }
 
 /**
- *  Implements template_preprocess_hook()
+ * Implements template_preprocess_hook()
+ *
+ * @see flippy.tpl.php
+ *
+ * @ingroup themeable
  */
 function template_preprocess_flippy(&$vars) {
   $node = menu_get_object();
