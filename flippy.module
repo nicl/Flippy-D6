@@ -1,0 +1,216 @@
+<?php
+
+/**
+ * @file
+ * Allows administrators to add previous/next pagers to any node type.
+ */
+
+
+/**
+ * Implements hook_theme()
+ *
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
+function flippy_theme() {
+  return array(
+    'flippy' => array(
+      'arguments' => array(
+        'list' => array(),
+      ),
+      'template' => 'flippy',
+    ),
+  );
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function flippy_form_node_type_form_alter(&$form, $form_state) {
+//  krumo($form);
+  $form['flippy'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Flippy settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['flippy']['flippy'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Build a pager for this content type'),
+    '#default_value' => isset($form['flippy']['flippy']) ?
+        $form['flippy']['flippy'] :
+        variable_get('flippy_' . $form['#node_type']->type, FALSE),
+  );
+
+  $form['flippy']['flippy_label_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Pager label type'),
+    '#options' => array(
+      0 => t('Custom text'),
+      1 => t('Node title'),
+      2 => t('Node ID'),
+    ),
+    '#default_value' => isset($form['flippy']['flippy_label_type']) ?
+        $form['flippy']['flippy_label_type'] :
+        variable_get('flippy_label_type_' . $form['#node_type']->type, 0),
+    '#description' => t('Select label type to display'),
+  );
+
+  $form['flippy']['flippy_prev_label'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Label for "Previous" link'),
+    '#size' => 32,
+    '#default_value' => isset($form['flippy']['flippy_prev_label']) ?
+        $form['flippy']['flippy_prev_label'] :
+        variable_get('flippy_prev_label_' . $form['#node_type']->type, 'Previous'),
+  );
+
+  $form['flippy']['flippy_next_label'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Label for "Next" link'),
+    '#size' => 32,
+    '#default_value' => isset($form['flippy']['flippy_next_label']) ?
+        $form['flippy']['flippy_next_label'] :
+        variable_get('flippy_next_label_' . $form['#node_type']->type, 'Next'),
+  );
+
+  $form['flippy']['flippy_firstlast'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show first/last links'),
+    '#default_value' => isset($form['flippy']['flippy_firstlast']) ?
+        $form['flippy']['flippy_firstlast'] :
+        variable_get('flippy_firstlast_' . $form['#node_type']->type, FALSE),
+  );
+
+  $form['flippy']['flippy_first_label'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Label for "First" link'),
+    '#size' => 32,
+    '#default_value' => isset($form['flippy']['flippy_first_label']) ?
+        $form['flippy']['flippy_first_label'] :
+        variable_get('flippy_first_label_' . $form['#node_type']->type, 'First'),
+  );
+
+  $form['flippy']['flippy_last_label'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Label for "Last" link'),
+    '#size' => 32,
+    '#default_value' => isset($form['flippy']['flippy_last_label']) ?
+        $form['flippy']['flippy_last_label'] :
+        variable_get('flippy_last_label_' . $form['#node_type']->type, 'Last'),
+  );
+}
+
+/**
+ * Implementation of hook_content_extra_fields.
+ */
+function flippy_content_extra_fields($type_name) {
+  $type = node_get_types('type', $type_name);
+  $extra = array();
+
+  if (variable_get('flippy_'. $type_name, null)) {
+    $extra['flippy_pager'] = array(
+      'label' => t('Pager'),
+      'description' => t('Flippy module content pager'),
+      'weight' => variable_get('flippy_wt_'. $type_name, 0),
+    );
+  }
+
+  return $extra;
+}
+
+/**
+ * Implements hook_nodeapi().
+ */
+function flippy_nodeapi(&$node, $op) {
+  if ($op === 'view' && $node->build_mode === NODE_BUILD_NORMAL) {
+    if (variable_get('flippy_'. $node->type, NULL)) {
+      $node->content['flippy_pager'] = array(
+        '#value' => theme('flippy', flippy_build_list($node)),
+      );
+    }
+  }
+}
+
+/**
+ *  Function that builds the list of nodes
+ */
+function flippy_build_list($node) {
+  static $master_list;
+
+  if (!isset($master_list)) {
+    $master_list = array();
+  }
+
+  if (!isset($master_list[$node->nid])) {
+    $q = array();
+    $list = array();
+
+    // Create a starting-point query object
+    $sql = "SELECT nid, title FROM node 
+        WHERE status = 1 AND type = '%s' AND nid != '%d'";
+    $q = array(
+      'first' => "\nAND created <= '%d' ORDER BY created ASC",
+      'prev'  => "\nAND created <= '%d' ORDER BY created DESC",
+      'next'  => "\nAND created >= '%d' ORDER BY created ASC",
+      'last'  => "\nAND created >= '%d' ORDER BY created DESC",
+    );
+
+    foreach ($q as $key => $query) {
+      $query = $sql . $query . "\n LIMIT 1";
+      $list[$key] = db_fetch_array(db_query($query, $node->type, $node->nid, 
+          $node->created));
+    }
+
+    $list['current'] = array(
+      'nid' => $node->nid,
+      'title' => $node->title,
+    );
+
+    $master_list[$node->nid] = $list;
+  }
+
+  return $master_list[$node->nid];
+}
+
+/**
+ *  Implements template_preprocess_hook()
+ */
+function template_preprocess_flippy(&$vars) {
+  $node = menu_get_object();
+  $nav = $vars['list'];
+  drupal_add_css(drupal_get_path('module', 'flippy') . '/flippy.css');
+
+  // for getting node type
+  if ($node) {
+    $vars['node'] = $node;
+  }
+
+  $label_type = variable_get('flippy_label_type_' . $vars['node']->type, NULL);
+
+  if ($nav) {
+    if (variable_get('flippy_firstlast_'. $vars['node']->type, NULL)) {
+      $vars['first_link'] = empty($nav['first']) ? '' : l('« ' . t(variable_get('flippy_first_label_' . $vars['node']->type, NULL)), 'node/' . $nav['first']['nid']);
+      $vars['last_link'] = empty($nav['last']) ? '' : l(t(variable_get('flippy_last_label_' . $vars['node']->type, NULL)) . ' »', 'node/' . $nav['last']['nid']);
+    }
+    switch ($label_type) {
+      case '0':
+        $vars['previous_link'] = empty($nav['prev']) ? '' : l('‹ ' . t(variable_get('flippy_prev_label_' . $vars['node']->type, NULL)), 'node/' . $nav['prev']['nid']);
+        $vars['next_link'] = empty($nav['next']) ? '' : l(t(variable_get('flippy_next_label_' . $vars['node']->type, NULL)) . ' ›', 'node/' . $nav['next']['nid']);
+        break;
+      case '1':
+        $vars['previous_link'] = empty($nav['prev']) ? '' : l('‹ ' . t($nav['prev']['title']), 'node/' . $nav['prev']['nid']);
+        $vars['next_link'] = empty($nav['next']) ? '' : l(t($nav['next']['title']) . ' ›', 'node/' . $nav['next']['nid']);
+        break;
+      case '2':
+        $vars['previous_link'] = empty($nav['prev']) ? '' : l('‹ ' . t($nav['prev']['nid']), 'node/' . $nav['prev']['nid']);
+        $vars['next_link'] = empty($nav['next']) ? '' : l(t($nav['next']['nid']) . ' ›', 'node/' . $nav['next']['nid']);
+        break;
+    }
+  }
+
+  $vars = array_merge($vars, $vars['list']);
+  unset($vars['list']);
+  unset($vars['node']);
+}
