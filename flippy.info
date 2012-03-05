@@ -1,3 +1,4 @@
 name = Flippy
 core = 6.x
 description = Allows administrators to define custom pagers for navigation in lists of nodes.
+dependencies[] = content
